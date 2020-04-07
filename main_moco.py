@@ -88,11 +88,11 @@ parser.add_argument('--moco-t', default=0.07, type=float,
                     help='softmax temperature (default: 0.07)')
 
 # options for moco v2
-parser.add_argument('--mlp', action='store_true',
+parser.add_argument('--mlp', default=True,
                     help='use mlp head')
 parser.add_argument('--aug-plus', default=True,
                     help='use moco v2 data augmentation')
-parser.add_argument('--cos', action='store_true',
+parser.add_argument('--cos', default=True,
                     help='use cosine lr schedule')
 
 def main():
