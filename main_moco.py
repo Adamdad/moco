@@ -19,16 +19,29 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-import torchvision.models as models
+# import torchvision.models as models
+from model import Densenet, Inceptionv3, ResNet, VGG, SimpleCNN, Efficientnet
 import moco.loader
 import moco.builder
 
-model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
+model_names = {
+        'densenet121':  Densenet.densenet121,
+        'densenet161':  Densenet.densenet161,
+        'densenet169':  Densenet.densenet169,
+        'resnet18':     ResNet.resnet18,
+        'resnet50':     ResNet.resnet50,
+        'wide_resnet101':ResNet.wide_resnet101_2,
+        'vgg16':        VGG.vgg16,
+        'CNN':          SimpleCNN.CNN,
+        'Linear':       SimpleCNN.Linear,
+        'SimpleCNN':    SimpleCNN.SimpleCNN,
+        'efficientnet-b7': Efficientnet.efficientnetb7,
+        'efficientnet-b1': Efficientnet.efficientnetb1,
+        'efficientnet-b0': Efficientnet.efficientnetb0
+    }
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('--data',  default='../LUNA', type=str,
+parser.add_argument('--data',  default='../data/4_4_data', type=str,
                     help='path to dataset')
 parser.add_argument('-a', '--arch', default='resnet50',type=str,
                     choices=model_names,
@@ -37,7 +50,7 @@ parser.add_argument('-a', '--arch', default='resnet50',type=str,
                         ' (default: resnet50)')
 parser.add_argument('-j', '--workers', default=32, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
-parser.add_argument('--epochs', default=200, type=int, metavar='N',
+parser.add_argument('--epochs', default=2000, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -46,9 +59,9 @@ parser.add_argument('-b', '--batch-size', default=128, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.03, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.015, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
-parser.add_argument('--schedule', default=[120, 160], nargs='*', type=int,
+parser.add_argument('--schedule', default=[200, 300, 500], nargs='*', type=int,
                     help='learning rate schedule (when to drop lr by 10x)')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum of SGD solver')
@@ -63,7 +76,7 @@ parser.add_argument('--world-size', default=1, type=int,
                     help='number of nodes for distributed training')
 parser.add_argument('--rank', default=0, type=int,
                     help='node rank for distributed training')
-parser.add_argument('--dist-url', default='tcp://localhost:10001', type=str,
+parser.add_argument('--dist-url', default='tcp://localhost:10002', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='nccl', type=str,
                     help='distributed backend')
@@ -76,11 +89,12 @@ parser.add_argument('--multiprocessing-distributed', default=True,
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
-
+parser.add_argument('--save-epoch',default=40,type=int)
+parser.add_argument('--save-path',default='LUNA_resnet50_640_imagenet',type=str)
 # moco specific configs:
 parser.add_argument('--moco-dim', default=128, type=int,
                     help='feature dimension (default: 128)')
-parser.add_argument('--moco-k', default=65536, type=int,
+parser.add_argument('--moco-k', default=640, type=int,
                     help='queue size; number of negative keys (default: 65536)')
 parser.add_argument('--moco-m', default=0.999, type=float,
                     help='moco momentum of updating key encoder (default: 0.999)')
@@ -153,7 +167,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # create model
     print("=> creating model '{}'".format(args.arch))
     model = moco.builder.MoCo(
-        models.__dict__[args.arch],
+        model_names[args.arch],
         args.moco_dim, args.moco_k, args.moco_m, args.moco_t, args.mlp)
 
     if args.distributed:
@@ -214,9 +228,11 @@ def main_worker(gpu, ngpus_per_node, args):
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+    traindir = args.data #os.path.join(args.data, 'train')
+    # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    #                                  std=[0.229, 0.224, 0.225])
+    normalize = transforms.Normalize(mean=[0.45271412, 0.45271412, 0.45271412],
+                                     std=[0.33165374, 0.33165374, 0.33165374])
     if args.aug_plus:
         # MoCo v2's aug: similar to SimCLR https://arxiv.org/abs/2002.05709
         augmentation = [
@@ -254,6 +270,9 @@ def main_worker(gpu, ngpus_per_node, args):
         train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler, drop_last=True)
 
+    if os.path.exists(args.save_path)==False:
+        os.mkdir(args.save_path)
+
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
@@ -261,20 +280,22 @@ def main_worker(gpu, ngpus_per_node, args):
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args)
+        if epoch!=0 and epoch % args.save_epoch == 0:
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': args.arch,
-                'state_dict': model.state_dict(),
-                'optimizer' : optimizer.state_dict(),
-            }, is_best=False, filename='checkpoint_{:04d}.pth.tar'.format(epoch))
-
+            filename = os.path.join(args.save_path,'checkpoint_{:04d}.pth.tar'.format(epoch))
+            if not args.multiprocessing_distributed or (args.multiprocessing_distributed
+                    and args.rank % ngpus_per_node == 0):
+                save_checkpoint({
+                    'epoch': epoch + 1,
+                    'arch': args.arch,
+                    'state_dict': model.state_dict(),
+                    'optimizer' : optimizer.state_dict(),
+                }, is_best=False, filename=filename)
+            print("Model Saved")
 def train(train_loader, model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
-    losses = AverageMeter('Loss', ':.4e')
+    losses = AverageMeter('Loss', ':6.3f')
     top1 = AverageMeter('Acc@1', ':6.2f')
     top5 = AverageMeter('Acc@5', ':6.2f')
     progress = ProgressMeter(
