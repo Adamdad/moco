@@ -43,7 +43,7 @@ model_names = {
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('--data',  default='../data/4_4_data', type=str,
                     help='path to dataset')
-parser.add_argument('-a', '--arch', default='resnet50',type=str,
+parser.add_argument('-a', '--arch', default='densenet169',type=str,
                     choices=model_names,
                     help='model architecture: ' +
                         ' | '.join(model_names) +
@@ -90,11 +90,11 @@ parser.add_argument('--multiprocessing-distributed', default=True,
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
 parser.add_argument('--save-epoch',default=40,type=int)
-parser.add_argument('--save-path',default='LUNA_resnet50_640_imagenet',type=str)
+parser.add_argument('--save-path',default='COVID_DenseNet169_512_imagenet',type=str)
 # moco specific configs:
 parser.add_argument('--moco-dim', default=128, type=int,
                     help='feature dimension (default: 128)')
-parser.add_argument('--moco-k', default=640, type=int,
+parser.add_argument('--moco-k', default=512, type=int,
                     help='queue size; number of negative keys (default: 65536)')
 parser.add_argument('--moco-m', default=0.999, type=float,
                     help='moco momentum of updating key encoder (default: 0.999)')
