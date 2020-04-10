@@ -50,7 +50,7 @@ parser.add_argument('-a', '--arch', default='densenet169',type=str,
                         ' (default: resnet50)')
 parser.add_argument('-j', '--workers', default=32, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
-parser.add_argument('--epochs', default=2000, type=int, metavar='N',
+parser.add_argument('--epochs', default=1000, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
@@ -90,7 +90,7 @@ parser.add_argument('--multiprocessing-distributed', default=True,
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
 parser.add_argument('--save-epoch',default=40,type=int)
-parser.add_argument('--save-path',default='COVID_DenseNet169_512_imagenet',type=str)
+parser.add_argument('--save-path',default='COVID_DenseNet169_512_imagenet_combine',type=str)
 # moco specific configs:
 parser.add_argument('--moco-dim', default=128, type=int,
                     help='feature dimension (default: 128)')
